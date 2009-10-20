@@ -13,24 +13,20 @@ sub new {
     my ($class, $file) = @_;
 
     my %data;
-    if(UNIVERSAL::isa($file, 'IO::Handle')) {
+    if (UNIVERSAL::isa($file, 'IO::Handle')) {
         $data{file} = $file;
-    }
-    elsif(UNIVERSAL::isa($file, 'File::Tail')) {
+    } elsif (UNIVERSAL::isa($file, 'File::Tail')) {
         $data{file} = $file;
         $data{filetail}=1;
-    }
-    elsif(! ref $file) {
+    } elsif (! ref $file) {
         if($file eq '-') {
             my $io = new IO::Handle;
             $data{file} = $io->fdopen(fileno(STDIN),"r");
-        }
-        else {
+        } else {
             $data{file} = new IO::File($file, "<");
             defined $data{file} or croak "can't open $file: $!";
         }
-    }
-    else {
+    } else {
         croak "argument must be either a file-name or an IO::Handle/File::Tail object.";
     }
 
@@ -40,10 +36,9 @@ sub new {
 sub _next_line {
     my $self = shift;
     my $f = $self->{file};
-    if(defined $self->{filetail}) {
+    if (defined $self->{filetail}) {
         return $f->read;
-    }
-    else {
+    } else {
         return $f->getline;
     }
 }
@@ -111,5 +106,59 @@ sub next {
 
 =head1 DESCRIPTION
 
-bla bla
+Sphinx::Log::Parser parse sphinx searchd query.log based on L<http://sphinxsearch.com/docs/current.html#query-log-format>
 
+=head2 Constructing a Parser
+
+B<new> requires as first argument a source from where to get the syslog lines. It can
+be:
+
+=over 4
+
+=item *
+
+a filename for the searchd query log to be parsed. check B<query_log> in conf file
+
+=item *
+
+an IO::Handle object.
+
+=item *
+
+a File::Tail object as first argument, in which
+case the I<read> method will be called to get lines to process.
+
+=item *
+
+The log string, you need use L<IO::Scalar>
+
+    use IO::Scalar;
+    my $logstr = '[Fri Jun 29 21:20:34 2007] 0.024 sec [all/0/rel 19886 (0,20) @channel_id] [lj] test';
+    my $io = new IO::Scalar \$logstr;
+    my $parser = Sphinx::Log::Parser->new( $io );
+
+=back
+
+=head2 Parsing the file
+
+The file is parse one line at a time by calling the B<next> method, which returns
+a hash-reference containing the following keys:
+
+    {
+      'total_matches' => '19886',
+      'match_mode' => 'all',
+      'query' => 'test',
+      'query_date' => 'Fri Jun 29 21:20:34 2007',
+      'filter_count' => '0',
+      'index_name' => 'lj',
+      'limit' => '20',
+      'query_time' => '0.024',
+      'sort_mode' => 'rel',
+      'groupby_attr' => 'channel_id',
+      'offset' => '0'
+    }
+
+The log format is
+
+    [query-date] query-time [match-mode/filters-count/sort-mode
+        total-matches (offset,limit) @groupby-attr] [index-name] query
