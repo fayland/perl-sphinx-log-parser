@@ -110,7 +110,7 @@ Sphinx::Log::Parser parse sphinx searchd query.log based on L<http://sphinxsearc
 
 =head2 Constructing a Parser
 
-B<new> requires as first argument a source from where to get the syslog lines. It can
+B<new> requires as first argument a source from where to get the searchd query log lines. It can
 be:
 
 =over 4
