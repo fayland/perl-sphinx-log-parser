@@ -1,4 +1,0 @@
-[Fri Jun 29 21:17:58 2007] 0.004 sec [all/0/rel 35254 (0,20)] [lj] test
-[Fri Jun 29 21:20:34 2007] 0.024 sec [all/0/rel 19886 (0,20) @channel_id] [lj] test
-[Tue Oct 20 02:42:29.979 2009] 0.005 sec [ext/3/ext 163 (0,100)] [*] @city_id "3889"
-[Tue Oct 20 02:42:30.052 2009] 0.048 sec [scan/4/attr- 106 (64,16)] [*]

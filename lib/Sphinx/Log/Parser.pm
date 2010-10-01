@@ -45,49 +45,64 @@ sub _next_line {
 
 sub next {
     my ($self) = @_;
-    
-    while(defined (my $str = $self->_next_line)) {
-        # 0.9.8.1
-        # [Tue Oct 20 02:42:29.950 2009] 0.528 sec [ext/5/attr- 25863 (0,800)] [*] @sexual_preference Male -Female
-        # [query-date] query-time [match-mode/filters-count/sort-mode total-matches (offset,limit) @groupby-attr] [index-name] query
 
-        my @parts = split('\]', $str, 4);
-        # [
-        #  '[Tue Oct 20 02:42:29.979 2009',
-        #  ' 0.005 sec [ext/3/ext 163 (0,100)',
-        #  ' [*',
-        #  ' @city_id "3889"'
-        #];
+    while ( defined( my $str = $self->_next_line ) ) {
 
-        #  '[Tue Oct 20 02:42:29.979 2009',
-        my $query_date = $parts[0]; $query_date =~ s/^\[//;
-        #  ' 0.005 sec [ext/3/ext 163 (0,100)',
-        $parts[1] =~ /^\s*([\d\.]+)\s+sec\s+\[(\w+)\/(\d+)\/([\w\-\+]+)\s(\d+)\s\((\d+)\,(\d+)\)\s*\@?(\S+)?$/;
-        my $query_time = $1;
-        my $match_mode = $2;
-        my $filter_count = $3;
-        my $sort_mode  = $4;
-        my $total_matches = $5;
-        my $offset = $6;
-        my $limit  = $7;
-        my $groupby_attr = $8;
-        #  ' [*',
-        my $index_name = $parts[2]; $index_name =~ s/^\s*\[//;
-        #  ' @city_id "3889"'
-        my $query = $parts[3]; $query =~ s/(^\s+|\s+$)//g;
+# 0.9.9
+# [query-date] query-time multiquery-factor [match-mode/filters-count/sort-mode total-matches (offset,limit) @groupby-attr]  [index-name] [performances-counters] [query-comment] query
+# optionals: multiquery-factor, @groupby-attr, performances-counters, query-comment
+
+# '[Mon Sep 20 06:25:29.979 2010] '
+# '0.005 sec x20 '
+# '[ext/3/ext 163 (0,100) @perf_id] '
+# '[index1 index2] '
+# '[ios=5 kb=45.6 ioms=65.57 cpums=2.5] '
+# '[query comment] '
+# '@author  (Days Gracie) '
+
+        $str =~ /^
+                 \[(\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+\d{4})\]\s+
+                 ([\d\.]+)\s+sec\s+(x[\d]+)?\s?
+                 \[(\w+)\/(\d+)\/([\w\-\+]+)\s(\d+)\s\((\d+)\,(\d+)\)\s*\@?(\S+)?\]\s+
+                 \[([\w\s\;]+)\]\s+
+                 (\[ios\=[\d\.]+\s+kb\=[\d\.]+\s+ioms\=[\d\.]+[\s+cpums\=[\d\.]+]?\])?\s?
+                 (\[.*\])?\s?
+                 (.*)
+                $/x;
+        
+        my $query_date            = $1;
+        my $query_time            = $2;
+        my $multiquery_factor     = $3;
+        my $match_mode            = $4;
+        my $filter_count          = $5;
+        my $sort_mode             = $6;
+        my $total_matches         = $7;
+        my $offset                = $8;
+        my $limit                 = $9;
+        my $groupby_attr          = $10;
+        my $index_name            = $11;
+        my $performances_counters = $12;
+        my $query_comment         = $13;
+        my $query                 = $14;
+        
+        $performances_counters =~ s/\[(.*)\]/$1/ if $performances_counters;
+        $query_comment         =~ s/\[(.*)\]/$1/ if $query_comment;
 
         return {
-            query_date => $query_date,
-            query_time => $query_time,
-            match_mode => $match_mode,
-            filter_count => $filter_count,
-            sort_mode  => $sort_mode,
-            total_matches => $total_matches,
-            offset => $offset,
-            limit  => $limit,
-            groupby_attr => $groupby_attr,
-            index_name => $index_name,
-            query  => $query
+            query_date            => $query_date,
+            multiquery_factor     => $multiquery_factor,
+            query_time            => $query_time,
+            match_mode            => $match_mode,
+            filter_count          => $filter_count,
+            sort_mode             => $sort_mode,
+            total_matches         => $total_matches,
+            offset                => $offset,
+            limit                 => $limit,
+            groupby_attr          => $groupby_attr,
+            index_name            => $index_name,
+            performances_counters => $performances_counters,
+            query_comment         => $query_comment,
+            query                 => $query
         };
     }
     return;
@@ -133,7 +148,8 @@ case the I<read> method will be called to get lines to process.
 The log string, you need use L<IO::Scalar>
 
     use IO::Scalar;
-    my $logstr = '[Fri Jun 29 21:20:34 2007] 0.024 sec [all/0/rel 19886 (0,20) @channel_id] [lj] test';
+    # 0.9.9
+    my $logstr = '[Fri Oct  1 03:18:46.342 2010] 0.014 sec [ext/2/rel 55 (0,700)] [topic;topicdelta;] [ios=0 kb=0.0 ioms=0.0] @title lucky';
     my $io = new IO::Scalar \$logstr;
     my $parser = Sphinx::Log::Parser->new( $io );
 
@@ -144,21 +160,25 @@ The log string, you need use L<IO::Scalar>
 The file is parse one line at a time by calling the B<next> method, which returns
 a hash-reference containing the following keys:
 
-    {
-      'total_matches' => '19886',
-      'match_mode' => 'all',
-      'query' => 'test',
-      'query_date' => 'Fri Jun 29 21:20:34 2007',
-      'filter_count' => '0',
-      'index_name' => 'lj',
-      'limit' => '20',
-      'query_time' => '0.024',
-      'sort_mode' => 'rel',
-      'groupby_attr' => 'channel_id',
-      'offset' => '0'
-    }
+   {
+     'performances_counters' => 'ios=0 kb=0.0 ioms=0.0',
+     'total_matches' => '55',
+     'match_mode' => 'ext',
+     'query' => '@title lucky',
+     'query_date' => 'Fri Oct  1 03:18:46.342 2010',
+     'query_comment' => undef,
+     'filter_count' => '2',
+     'multiquery_factor' => undef,
+     'index_name' => 'topic;topicdelta;',
+     'limit' => '700',
+     'groupby_attr' => undef,
+     'query_time' => '0.014',
+     'sort_mode' => 'rel',
+     'offset' => '0'
+   },
 
 The log format is
 
-    [query-date] query-time [match-mode/filters-count/sort-mode
-        total-matches (offset,limit) @groupby-attr] [index-name] query
+    [query-date] query-time multiquery-factor [match-mode/filters-count/sort-mode total-matches (offset,limit) @groupby-attr]  [index-name] [performances-counters] [query-comment] query
+    
+    # optionals: multiquery-factor, @groupby-attr, performances-counters, query-comment
