@@ -148,10 +148,13 @@ case the I<read> method will be called to get lines to process.
 The log string, you need use L<IO::Scalar>
 
     use IO::Scalar;
-    # 0.9.9
+    use Data::Dumper;
     my $logstr = '[Fri Oct  1 03:18:46.342 2010] 0.014 sec [ext/2/rel 55 (0,700)] [topic;topicdelta;] [ios=0 kb=0.0 ioms=0.0] @title lucky';
     my $io = new IO::Scalar \$logstr;
     my $parser = Sphinx::Log::Parser->new( $io );
+    while (my $sl = $parser->next) {
+        print Dumper(\$sl), "\n";
+    }
 
 =back
 
